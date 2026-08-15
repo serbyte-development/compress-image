@@ -1,0 +1,8 @@
+node_modules/
+dist/
+vendor/
+third_party/
+*.vsix
+.DS_Store
+.env*
+.secrets/

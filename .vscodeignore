@@ -1,0 +1,15 @@
+.gitignore
+buildplan.md
+.git/**
+.github/**
+.vscode/**
+src/**
+test/**
+scripts/**
+esbuild.mjs
+tsconfig.json
+package-lock.json
+.prettierignore
+*.vsix
+.env*
+.secrets/**

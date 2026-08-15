@@ -1,0 +1,7 @@
+dist/
+node_modules/
+vendor/
+third_party/
+*.vsix
+package-lock.json
+images/*.png

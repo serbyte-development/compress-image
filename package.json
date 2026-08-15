@@ -1,0 +1,112 @@
+{
+  "name": "compress-image",
+  "displayName": "Compress Image",
+  "description": "One-click local validated-lossless compression for PNG/APNG, JPEG, static WebP, and GIF in VS Code and Cursor.",
+  "version": "0.1.0",
+  "publisher": "serbytedevelopment",
+  "license": "MIT",
+  "icon": "images/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Serbyte-Development/compress-image.git"
+  },
+  "homepage": "https://github.com/Serbyte-Development/compress-image#readme",
+  "bugs": {
+    "url": "https://github.com/Serbyte-Development/compress-image/issues"
+  },
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "image compression",
+    "image compressor",
+    "image optimizer",
+    "lossless compression",
+    "lossless image compression",
+    "compress image",
+    "optimize image",
+    "image optimization",
+    "png",
+    "png optimizer",
+    "jpeg",
+    "jpg",
+    "jpeg optimizer",
+    "mozjpeg",
+    "webp",
+    "webp optimizer",
+    "gif",
+    "gif optimizer",
+    "oxipng",
+    "gifsicle",
+    "frontend",
+    "web performance",
+    "assets",
+    "asset optimization",
+    "local",
+    "offline",
+    "cursor"
+  ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "capabilities": {
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "Compress Image requires filesystem access and bundled native image optimizers."
+    },
+    "untrustedWorkspaces": {
+      "supported": true
+    }
+  },
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "compressImage.compressImage",
+        "title": "Compress Image"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "compressImage.compressImage",
+          "when": "isFileSystemResource && resourceScheme == file && resourceExtname =~ /\\.(png|apng|jpe?g|webp|gif)$/i",
+          "group": "navigation@20"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "postinstall": "node scripts/fetch-oxipng.mjs && node scripts/build-mozjpeg.mjs && node scripts/fetch-libwebp.mjs && node scripts/copy-tool-binaries.mjs && node scripts/fetch-gifsicle-source.mjs && node scripts/copy-runtime-licenses.mjs",
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/**/*.test.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "audit:runtime": "npm audit --omit=dev",
+    "bundle:check": "node scripts/check-bundle-load.cjs",
+    "check": "npm run typecheck && npm test && npm run format:check && npm run build && npm run bundle:check",
+    "vscode:prepublish": "npm run build",
+    "package:vsix": "npm run check && npm run audit:runtime && node scripts/package-vsix.mjs"
+  },
+  "dependencies": {
+    "sharp": "^0.35.3"
+  },
+  "devDependencies": {
+    "@343dev/gifsicle": "^1.2.0",
+    "@types/node": "^24.0.0",
+    "@types/vscode": "^1.96.0",
+    "@upng/upng-js": "^2.2.2",
+    "@vscode/vsce": "^3.9.2",
+    "cmake-runtime": "^4.3.1",
+    "esbuild": "^0.28.2",
+    "prettier": "^3.9.6",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2",
+    "yauzl": "^3.2.0"
+  }
+}
