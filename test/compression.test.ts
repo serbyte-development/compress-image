@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import {
+  copyFile,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -40,37 +47,8 @@ async function withTempDir(run: (dir: string) => Promise<void>): Promise<void> {
   }
 }
 
-async function makeAnimatedGif(output: string, dir: string): Promise<void> {
-  const frame1 = path.join(dir, "frame1.gif");
-  const frame2 = path.join(dir, "frame2.gif");
-
-  await sharp({
-    create: {
-      width: 48,
-      height: 48,
-      channels: 4,
-      background: { r: 255, g: 0, b: 0, alpha: 1 },
-    },
-  })
-    .gif()
-    .toFile(frame1);
-  await sharp({
-    create: {
-      width: 48,
-      height: 48,
-      channels: 4,
-      background: { r: 0, g: 0, b: 255, alpha: 0.5 },
-    },
-  })
-    .gif()
-    .toFile(frame2);
-
-  const { stdout } = await execFileAsync(
-    tools.gifsicle,
-    ["--delay", "10", "--loopcount=0", frame1, "--delay", "20", frame2],
-    { encoding: "buffer", maxBuffer: 1024 * 1024 },
-  );
-  await writeFile(output, stdout);
+async function makeAnimatedGif(output: string, _dir: string): Promise<void> {
+  await copyFile(path.join(repoRoot, "test/fixtures/gif/animated.gif"), output);
 }
 
 async function makeSingleFrameAnimatedWebp(
@@ -265,16 +243,12 @@ async function pngInterlaceMethod(file: string): Promise<number> {
 test("bundles expected native optimizer versions", async () => {
   const oxipng = await execFileAsync(tools.oxipng, ["--version"]);
   const jpegtran = await execFileAsync(tools.jpegtran, ["-version"]);
-  const cwebp = await execFileAsync(tools.cwebp, ["-version"]);
-  const gifsicle = await execFileAsync(tools.gifsicle, ["--version"]);
 
   assert.match(`${oxipng.stdout}${oxipng.stderr}`, /oxipng 10\.2\.0/);
   assert.match(
     `${jpegtran.stdout}${jpegtran.stderr}`,
     /mozjpeg version 4\.1\.5/,
   );
-  assert.match(`${cwebp.stdout}${cwebp.stderr}`, /^1\.6\.0/m);
-  assert.match(`${gifsicle.stdout}${gifsicle.stderr}`, /Gifsicle 1\.96/);
 });
 
 test("recognizes supported extensions case-insensitively", () => {
@@ -512,27 +486,27 @@ for (const bitdepth of [10, 12] as const) {
 
 test("WebP optimization preserves hidden RGB in fully transparent pixels", async () => {
   await withTempDir(async (dir) => {
-    const png = path.join(dir, "hidden.png");
     const file = path.join(dir, "hidden.webp");
-    const pixels = Buffer.from([
-      255, 0, 0, 0, 0, 255, 0, 0, 0, 0, 255, 255, 10, 20, 30, 255,
-    ]);
 
-    await sharp(pixels, { raw: { width: 4, height: 1, channels: 4 } })
-      .png({ compressionLevel: 0 })
-      .toFile(png);
-    await execFileAsync(tools.cwebp, [
-      "-quiet",
-      "-lossless",
-      "-exact",
-      "-q",
-      "0",
-      png,
-      "-o",
+    await copyFile(
+      path.join(repoRoot, "test/fixtures/webp/hidden-rgb.webp"),
       file,
-    ]);
+    );
 
     const beforePixels = await sharp(file).ensureAlpha().raw().toBuffer();
+    let hiddenRgbPixels = 0;
+    for (let index = 0; index < beforePixels.length; index += 4) {
+      if (
+        beforePixels[index + 3] === 0 &&
+        (beforePixels[index] !== 0 ||
+          beforePixels[index + 1] !== 0 ||
+          beforePixels[index + 2] !== 0)
+      ) {
+        hiddenRgbPixels += 1;
+      }
+    }
+    assert.ok(hiddenRgbPixels > 0);
+
     const before = await snapshotImage(file, "webp");
     const beforeBytes = (await stat(file)).size;
     const result = await compressImage(file, tools);
@@ -541,8 +515,7 @@ test("WebP optimization preserves hidden RGB in fully transparent pixels", async
 
     assert.equal(result.status, "compressed");
     assert.ok((await stat(file)).size < beforeBytes);
-    assert.deepEqual(beforePixels, pixels);
-    assert.deepEqual(afterPixels, pixels);
+    assert.deepEqual(afterPixels, beforePixels);
     assert.ok(snapshotsMatch(before, after));
   });
 });

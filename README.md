@@ -9,91 +9,105 @@
 [![Open VSX Version](https://img.shields.io/open-vsx/v/serbytedevelopment/compress-image)](https://open-vsx.org/extension/serbytedevelopment/compress-image)
 -->
 
-Compress or resize supported raster image assets in place from VS Code — no uploads, no quality slider, no configuration.
+Compress and resize images directly from the VS Code Explorer. No uploads, no quality sliders, and no configuration.
 
-![Compress Image result in VS Code](images/result.png)
+![Compress Image Explorer menu](images/compress-image-menu-item.png)
 
-- **Simple Explorer menu.** Right-click a supported image and choose **Compress Image ▸ Compress** or **Resize ▸ 256 / 512 / 1080 px**.
-- **Best-effort lossless compression.** A compression candidate is accepted only when it is smaller and matches the format-specific decoded validation used by the extension. AVIF intentionally uses simple 8-bit visible-image validation, so high-bit sample precision is not guaranteed exact.
-- **Compression never grows a file.** The original stays untouched unless a validated compression candidate is smaller.
-- **Width-only resize.** Resize preserves aspect ratio, never crops/pads/stretches, never changes format, and never upscales.
-- **Optimize after resize.** Resized output is passed through the same format-specific optimizer pipeline before replacement.
-- **Local and private.** Compression and resize run on your machine; images are never uploaded.
-- **Strict format scope.** PNG/APNG, JPEG, static WebP, GIF, and normal static 8/10/12-bit AVIF are supported in v0.1.0.
+## What it does
 
-**Developed & maintained by [Serbyte Development](https://www.serbyte.net/)** · [GitHub](https://github.com/Serbyte-Development)
+- **Compress in place.** Right-click a supported image and run **Compress Image → Compress**.
+- **Resize in one click.** Choose **Resize - 256px**, **Resize - 512px**, or **Resize - 1080px** from the same menu.
+- **Never upscales.** Resize only changes images wider than the selected target width.
+- **Preserves aspect ratio.** No cropping, padding, stretching, or format conversion.
+- **Optimizes after resize.** Resized images automatically go through the normal format-specific optimizer.
+- **Never replaces a file with a larger compression result.** A compression candidate must be smaller and pass validation before it can replace the original.
+- **Runs locally.** Images never leave your machine.
 
 ## Usage
 
 1. Find a supported image in the VS Code Explorer.
-2. Right-click it.
+2. Right-click the image.
 3. Open **Compress Image**.
-4. Choose **Compress** or **Resize ▸ 256 px / 512 px / 1080 px**.
+4. Choose one action:
+   - **Compress**
+   - **Resize - 256px**
+   - **Resize - 512px**
+   - **Resize - 1080px**
 
-**Compress** optimizes in place only when the result is both smaller and matches the format-specific validation described below. **Resize** treats the selected number as target width, preserves aspect ratio, skips images already at or below that width, then optimizes the resized result before replacement.
+Resize values are target **widths**. Height is calculated automatically from the original aspect ratio. If the image is already at or below the selected width, it is left unchanged.
 
-Resize uses high-quality Lanczos3 resampling with Sharp's `fastShrinkOnLoad` disabled to favor quality over aggressive decoder-side shrinking. It does not crop, pad, stretch, or convert the image. JPEG resizing necessarily re-encodes image samples. Static PNG, JPEG, static WebP, GIF, and normal static 8/10/12-bit AVIF resize in place; animated GIF keeps frame count, timing, and loop behavior. APNG and animated WebP resize are rejected clearly rather than flattened or corrupted; their **Compress** action remains supported. AVIF image sequences and multi-image AVIF are rejected for both actions.
+After a successful operation, Compress Image reports the result and size change in VS Code.
+
+![Compress Image result notification](images/compress-image-snackbar-item.png)
 
 ## Supported formats
 
-| Format     | Optimizer                | Validation required before replacement                                                                         |
-| ---------- | ------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| PNG / APNG | OxiPNG 10.2.0            | Exact decoded RGBA pixels/frames, dimensions, APNG timing/loop/frame controls, validated metadata fields       |
-| JPEG / JPG | MozJPEG 4.1.5 `jpegtran` | Exact decoded RGBA pixels, dimensions, orientation/density, validated metadata fields                          |
-| WebP       | libwebp 1.6.0 `cwebp`    | Exact decoded RGBA pixels including hidden RGB under transparent pixels, dimensions, validated metadata fields |
-| GIF        | Gifsicle 1.96            | Exact decoded frames, dimensions, frame timing, loop behavior, validated metadata fields                       |
-| AVIF       | Sharp 0.35.3 AVIF        | 8-bit decoded visible RGBA equivalence, dimensions, orientation/density, validated metadata fields             |
+| Format     | Compress           | Resize                   | Optimizer                |
+| ---------- | ------------------ | ------------------------ | ------------------------ |
+| PNG        | Yes                | Yes                      | OxiPNG 10.2.0            |
+| APNG       | Yes                | No                       | OxiPNG 10.2.0            |
+| JPEG / JPG | Yes                | Yes                      | MozJPEG 4.1.5 `jpegtran` |
+| WebP       | Static only        | Static only              | Sharp 0.35.3             |
+| GIF        | Yes                | Yes, including animation | Sharp 0.35.3             |
+| AVIF       | Static 8/10/12-bit | Static 8/10/12-bit       | Sharp 0.35.3             |
 
-"Validated metadata fields" for **Compress** means the fields explicitly compared by the extension: orientation, density, and ICC/EXIF/IPTC/XMP blobs when exposed by Sharp for that format. Decoded RGBA pixels already validate actual transparency, so an optimizer may remove an unused fully opaque alpha channel. It is not a claim that every possible ancillary container chunk is preserved.
+Animated WebP, APNG resize, AVIF image sequences, and multi-image AVIF files are rejected rather than flattened or silently changed. HEIC, TIFF, BMP, SVG, and other formats are not supported in v0.1.0.
 
-For **Resize**, dimensions necessarily change. The validator instead requires target width/aspect ratio, format, frame count/timing/loop, alpha presence, and preserved ICC/XMP data when present. Resize deliberately does **not** preserve EXIF or IPTC metadata. EXIF orientation is applied to the pixels before resizing so the visible image stays correctly oriented even after EXIF is removed.
+## Compression behavior
 
-Animated WebP, AVIF image sequences, and multi-image AVIF are intentionally rejected rather than modified. HEIC, TIFF, BMP, and other formats are not supported in v0.1.0.
+Compress Image uses strong format-specific lossless optimization where it is practical, then validates the result before replacing the original file.
 
-## Safety model
+- **PNG / APNG:** OxiPNG uses `-o 1`, with a validated deinterlaced candidate for interlaced inputs. This favors interactive speed while keeping strong lossless savings.
+- **JPEG:** MozJPEG `jpegtran` uses progressive coefficient-level optimization with `-fastcrush`, avoiding image-sample re-encoding while skipping the expensive progressive scan search.
+- **Static WebP:** Sharp uses lossless WebP at effort 6 with exact transparent RGB preservation.
+- **GIF:** Sharp uses lossless GIF optimization while preserving and validating frame count, timing, and loop behavior.
+- **Static AVIF:** Sharp uses lossless AVIF encoding at effort 4 and requests the source 8/10/12-bit depth when available.
 
-Compress Image does not trust an optimizer result just because the command succeeded.
+Compression is **best-effort lossless**. PNG/APNG, JPEG, WebP, and GIF use strict decoded-output validation. AVIF uses visible-image validation through the ordinary decoded image path; exact high-bit sample precision is not part of the validation contract.
 
-For every candidate it:
+A candidate is accepted only when it is smaller than the original and passes the format-specific checks. If no candidate qualifies, the original file stays untouched.
 
-1. Snapshots decoded image output and the format-specific fields listed above.
-2. Creates optimized candidates in a temporary directory next to the source file.
-3. Rejects candidates that are not smaller.
-4. Decodes and compares the candidate against the original snapshot.
-5. Replaces the original only after validation passes.
-6. Keeps a temporary backup during replacement and restores it if the write fails.
+## Resize behavior
 
-PNG/APNG compression validation includes frame-level controls. JPEG compression compares orientation/density and exposed ICC/EXIF/IPTC/XMP metadata. AVIF uses the same simple metadata checks plus 8-bit decoded visible-image equivalence; Sharp is asked to retain the source 8/10/12-bit AVIF depth, but exact high-bit sample precision is not part of the validation contract and may normalize during decode/re-encode. Resize has a simpler contract: EXIF/IPTC are stripped, visible orientation is baked into static-image pixels, and ICC/XMP are preserved when present. Static WebP compression uses `-exact` so RGB values under fully transparent pixels remain intact and is still rejected unless decoded pixels and validated fields match.
+Resize uses high-quality Lanczos3 resampling and keeps the source format.
 
-## Compression strategy
+- Target width only; height follows the original aspect ratio.
+- Never crops, pads, stretches, or upscales.
+- EXIF orientation is applied to the pixels before resize.
+- EXIF and IPTC are intentionally stripped from resized output.
+- ICC and XMP are preserved when the format and encoder expose them cleanly.
+- Animated GIF frame count, timing, and loop behavior are preserved and validated.
+- The resized image is optimized again before the final file is written.
 
-- **PNG/APNG:** races strong OxiPNG candidates, with bounded Zopfli work for smaller files. Interlaced PNGs may be deinterlaced only when validation proves equivalent output.
-- **JPEG:** races optimized progressive and baseline coefficient-level MozJPEG `jpegtran` output. Replacement still requires identical decoded pixels and validated fields.
-- **WebP:** uses official libwebp `cwebp` at maximum lossless preset with exact transparent RGB preservation.
-- **GIF:** uses Gifsicle `-O3`, then validates the animation before replacement.
-- **AVIF:** normal static 8/10/12-bit AVIF uses Sharp lossless encoding at effort 9. Source bit depth is requested on encode when exposed by Sharp. Sequence/multi-image containers are rejected; candidates still must be smaller and match the 8-bit visible-image snapshot plus checked fields.
+JPEG resize necessarily re-encodes image samples because the dimensions change.
+
+## Validation and safe replacement
+
+Compress Image does not trust an optimizer just because it exited successfully. Before replacing the source file it checks the relevant decoded image and container properties for that format.
+
+For compression, validation includes decoded pixels or frames, dimensions, animation timing/loop data where applicable, and selected metadata such as orientation, density, ICC, EXIF, IPTC, and XMP when exposed by the decoder. An optimizer may remove an unused fully opaque alpha channel when the decoded RGBA image is unchanged.
+
+Temporary candidates are created beside the source file. The original is replaced only after a smaller candidate passes validation, and a temporary backup is kept during replacement so a failed write can be restored.
 
 ## Platforms
 
-Releases are platform-specific because Compress Image ships native optimization tools.
+Compress Image ships native optimization tools, so releases are platform-specific.
 
-- macOS arm64 (Apple Silicon)
-- macOS x64 (Intel)
-- Linux arm64 (glibc)
-- Linux x64 (glibc)
+- macOS arm64 — Apple Silicon
+- macOS x64 — Intel
+- Linux arm64 — glibc
+- Linux x64 — glibc
 - Windows x64
 
 Windows ARM64, Alpine Linux, browser/web extensions, and virtual workspaces are not supported in v0.1.0.
 
+VS Code `1.96.0` or newer is required. Cursor uses the VS Code extension model, but registry availability and platform behavior are separate from VS Code Marketplace support.
+
 The extension runs as a VS Code **workspace extension**. In Remote SSH, WSL, or dev-container sessions, the matching platform build must be installed in the remote extension host.
-
-## VS Code and Cursor
-
-VS Code `1.96.0` or newer is required. Cursor uses the VS Code extension model, but registry availability and platform behavior should be treated separately; see the release notes for builds that have been smoke-tested there.
 
 ## Development
 
-Requires Node.js 22 or newer for the current `@vscode/vsce` toolchain.
+Node.js 22 or newer is required for the current development and packaging toolchain.
 
 ```sh
 npm ci
@@ -102,7 +116,38 @@ npm run audit:runtime
 npm run package:vsix
 ```
 
-`npm run package:vsix` creates a VSIX for the current operating system and CPU architecture. Native binaries and redistribution licenses are acquired or built during `npm ci` and are checksum/version validated where upstream artifacts permit it.
+`npm run package:vsix` builds a VSIX for the current operating system and CPU architecture. Native binaries and redistribution licenses are acquired or built during `npm ci` and version/checksum validated where upstream artifacts permit it.
+
+### Compression benchmark
+
+The repository includes a standalone compression benchmark over a separate eight-image corpus under `benchmark/fixtures/`. The benchmark corpus is deliberately small and realistic; the regression-oriented files under `test/fixtures/` remain available separately.
+
+The benchmark compares encoder time against output size and runs each candidate through the extension's normal compression validation. This makes it useful for both tuning effort levels and deciding whether a Sharp-only implementation could replace a specialized native optimizer without violating the compression contract.
+
+```sh
+npm run benchmark:compression
+```
+
+Useful filters:
+
+```sh
+npm run benchmark:compression -- --format png
+npm run benchmark:compression -- --format webp --runs 3
+npm run benchmark:compression -- --fixture transparent-graphic
+npm run benchmark:compression -- --corpus regression --format png
+```
+
+The benchmark currently compares:
+
+- OxiPNG `-o 1`, `-o 4`, `-o 6`, and `-o max` against Sharp PNG compression, plus the historical bounded Zopfli candidate on small files.
+- MozJPEG baseline, full progressive, and progressive `-fastcrush` coefficient optimization against Sharp JPEG re-encoding at quality 100, including Sharp's MozJPEG mode.
+- Sharp lossless WebP efforts 4 and 6.
+- Sharp GIF efforts 7 and 10.
+- Sharp lossless AVIF effort 4, 6, and 9.
+
+Encoder time is measured separately from validation time. With multiple runs, the benchmark reports median encoder time. The decision table also shows total bytes, whether each strategy actually produced a smaller valid candidate, speed relative to the fastest fully valid strategy, and extra bytes relative to the smallest fully valid strategy.
+
+A strategy that produces a smaller file but fails validation is reported as a benchmark finding rather than causing the benchmark itself to fail. This is important when comparing Sharp decode/re-encode paths with the stricter lossless behavior of tools such as `jpegtran`.
 
 ## Support
 
@@ -110,4 +155,6 @@ For bugs, compatibility problems, or focused feature requests, open an issue in 
 
 ## License
 
-Compress Image is MIT licensed. Bundled optimizers and libraries keep their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). The Gifsicle source archive is included in each VSIX alongside its GPLv2-licensed executable.
+Compress Image is MIT licensed. Bundled optimizers and libraries keep their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+**Developed and maintained by [Serbyte Development](https://www.serbyte.net/).**

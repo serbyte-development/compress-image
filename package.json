@@ -44,7 +44,6 @@
     "avif",
     "avif optimizer",
     "oxipng",
-    "gifsicle",
     "frontend",
     "web performance",
     "assets",
@@ -138,7 +137,7 @@
     }
   },
   "scripts": {
-    "postinstall": "node scripts/fetch-oxipng.mjs && node scripts/build-mozjpeg.mjs && node scripts/fetch-libwebp.mjs && node scripts/copy-tool-binaries.mjs && node scripts/fetch-gifsicle-source.mjs && node scripts/copy-runtime-licenses.mjs",
+    "postinstall": "node scripts/fetch-oxipng.mjs && node scripts/build-mozjpeg.mjs && node scripts/copy-runtime-licenses.mjs",
     "build": "node esbuild.mjs",
     "watch": "node esbuild.mjs --watch",
     "typecheck": "tsc --noEmit",
@@ -149,13 +148,13 @@
     "bundle:check": "node scripts/check-bundle-load.cjs",
     "check": "npm run typecheck && npm test && npm run format:check && npm run build && npm run bundle:check",
     "vscode:prepublish": "npm run build",
-    "package:vsix": "npm run check && npm run audit:runtime && node scripts/package-vsix.mjs"
+    "package:vsix": "npm run check && npm run audit:runtime && node scripts/package-vsix.mjs",
+    "benchmark:compression": "tsx scripts/benchmark-compression.ts"
   },
   "dependencies": {
     "sharp": "^0.35.3"
   },
   "devDependencies": {
-    "@343dev/gifsicle": "^1.2.0",
     "@types/node": "^24.0.0",
     "@types/vscode": "^1.96.0",
     "@upng/upng-js": "^2.2.2",

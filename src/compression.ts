@@ -12,7 +12,7 @@ import {
   stat,
 } from "node:fs/promises";
 import path from "node:path";
-import sharp, { type Metadata } from "sharp";
+import sharp, { type Metadata, type Sharp } from "sharp";
 import UPNG from "@upng/upng-js";
 
 // This extension intentionally replaces image files in place. Disable libvips'
@@ -21,7 +21,6 @@ import UPNG from "@upng/upng-js";
 sharp.cache(false);
 
 const execFileAsync = promisify(execFile);
-const PNG_ZOPFLI_MAX_BYTES = 384 * 1024;
 
 export const SUPPORTED_EXTENSIONS = new Set([
   ".png",
@@ -38,8 +37,6 @@ export type ImageFormat = "png" | "jpeg" | "webp" | "gif" | "avif";
 export interface ToolPaths {
   oxipng: string;
   jpegtran: string;
-  cwebp: string;
-  gifsicle: string;
 }
 
 export type CompressionResult =
@@ -396,50 +393,16 @@ async function optimizePng(
     source[28] === 1;
   const candidates: Array<{ output: string; args: string[] }> = [
     {
-      output: path.join(tempDir, "png-max-keep.png"),
-      args: ["-o", "max", "-i", "keep", "--out"],
+      output: path.join(tempDir, "png-o1-keep.png"),
+      args: ["-o", "1", "-i", "keep", "--out"],
     },
   ];
 
   if (isInterlaced) {
     candidates.push({
-      output: path.join(tempDir, "png-max-deinterlace.png"),
-      args: ["-o", "max", "-i", "off", "--out"],
+      output: path.join(tempDir, "png-o1-deinterlace.png"),
+      args: ["-o", "1", "-i", "off", "--out"],
     });
-  }
-
-  if (source.length <= PNG_ZOPFLI_MAX_BYTES) {
-    candidates.push(
-      isInterlaced
-        ? {
-            output: path.join(tempDir, "png-zopfli-deinterlace.png"),
-            args: [
-              "-o",
-              "max",
-              "--fast",
-              "-z",
-              "--zi",
-              "8",
-              "-i",
-              "off",
-              "--out",
-            ],
-          }
-        : {
-            output: path.join(tempDir, "png-zopfli-keep.png"),
-            args: [
-              "-o",
-              "max",
-              "--fast",
-              "-z",
-              "--zi",
-              "8",
-              "-i",
-              "keep",
-              "--out",
-            ],
-          },
-    );
   }
 
   const outputs: string[] = [];
@@ -455,72 +418,65 @@ async function optimizeJpeg(
   tempDir: string,
   jpegtran: string,
 ): Promise<string[]> {
-  const candidates = [
-    {
-      output: path.join(tempDir, "jpeg-mozjpeg-progressive.jpg"),
-      args: ["-copy", "all", "-optimize", "-progressive"],
-    },
-    {
-      output: path.join(tempDir, "jpeg-mozjpeg-baseline.jpg"),
-      args: ["-revert", "-copy", "all", "-optimize"],
-    },
-  ];
-
-  const outputs: string[] = [];
-  for (const candidate of candidates) {
-    await runTool(jpegtran, [
-      ...candidate.args,
-      "-outfile",
-      candidate.output,
-      input,
-    ]);
-    if (await candidateExists(candidate.output)) outputs.push(candidate.output);
-  }
-  return outputs;
+  const output = path.join(tempDir, "jpeg-mozjpeg-progressive-fastcrush.jpg");
+  await runTool(jpegtran, [
+    "-copy",
+    "all",
+    "-optimize",
+    "-progressive",
+    "-fastcrush",
+    "-outfile",
+    output,
+    input,
+  ]);
+  return (await candidateExists(output)) ? [output] : [];
 }
 
-async function optimizeWebp(
+async function metadataPreservingSharp(
   input: string,
-  tempDir: string,
-  cwebp: string,
-): Promise<string[]> {
+  animated = false,
+): Promise<{ metadata: Metadata; pipeline: Sharp }> {
+  const metadata = await sharp(input, { animated }).metadata();
+  let pipeline = sharp(input, { animated });
+  if (metadata.icc) pipeline = pipeline.keepIccProfile();
+  if (metadata.exif) pipeline = pipeline.keepExif();
+  if (metadata.xmp) pipeline = pipeline.keepXmp();
+  return { metadata, pipeline };
+}
+
+async function optimizeWebp(input: string, tempDir: string): Promise<string[]> {
   const output = path.join(tempDir, "webp-lossless.webp");
-  await runTool(cwebp, [
-    "-quiet",
-    "-z",
-    "9",
-    "-exact",
-    "-metadata",
-    "all",
-    "-mt",
-    input,
-    "-o",
-    output,
-  ]);
+  const { pipeline } = await metadataPreservingSharp(input);
+  await pipeline
+    .webp({ lossless: true, effort: 6, exact: true })
+    .toFile(output);
   return [output];
 }
 
-async function optimizeGif(
-  input: string,
-  tempDir: string,
-  gifsicle: string,
-): Promise<string[]> {
-  const output = path.join(tempDir, "gif-o3.gif");
-  await runTool(gifsicle, ["-O3", "--no-warnings", input, "-o", output]);
+async function optimizeGif(input: string, tempDir: string): Promise<string[]> {
+  const output = path.join(tempDir, "gif-sharp.gif");
+  const { metadata, pipeline } = await metadataPreservingSharp(input, true);
+  await pipeline
+    .gif({
+      effort: 7,
+      reuse: true,
+      dither: 1,
+      interFrameMaxError: 0,
+      interPaletteMaxError: 0,
+      keepDuplicateFrames: true,
+      loop: metadata.loop,
+      delay: metadata.delay,
+    })
+    .toFile(output);
   return [output];
 }
 
 async function optimizeAvif(input: string, tempDir: string): Promise<string[]> {
   const output = path.join(tempDir, "avif-lossless.avif");
-  const metadata = await sharp(input).metadata();
-  let pipeline = sharp(input);
-
-  if (metadata.icc) pipeline = pipeline.keepIccProfile();
-  if (metadata.exif) pipeline = pipeline.keepExif();
-  if (metadata.xmp) pipeline = pipeline.keepXmp();
+  const { metadata, pipeline } = await metadataPreservingSharp(input);
 
   await pipeline
-    .avif({ lossless: true, effort: 9, bitdepth: avifBitdepth(metadata) })
+    .avif({ lossless: true, effort: 4, bitdepth: avifBitdepth(metadata) })
     .toFile(output);
   return [output];
 }
@@ -537,9 +493,9 @@ async function buildCandidates(
     case "jpeg":
       return optimizeJpeg(input, tempDir, tools.jpegtran);
     case "webp":
-      return optimizeWebp(input, tempDir, tools.cwebp);
+      return optimizeWebp(input, tempDir);
     case "gif":
-      return optimizeGif(input, tempDir, tools.gifsicle);
+      return optimizeGif(input, tempDir);
     case "avif":
       return optimizeAvif(input, tempDir);
   }
@@ -883,18 +839,6 @@ export function getBundledToolPaths(extensionRoot: string): ToolPaths {
       "vendor",
       "mozjpeg",
       `jpegtran${executableSuffix}`,
-    ),
-    cwebp: path.join(
-      extensionRoot,
-      "vendor",
-      "libwebp",
-      `cwebp${executableSuffix}`,
-    ),
-    gifsicle: path.join(
-      extensionRoot,
-      "vendor",
-      "gifsicle",
-      `gifsicle${executableSuffix}`,
     ),
   };
 }

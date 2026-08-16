@@ -17,7 +17,8 @@ Tests should prefer fixed files from this directory for product-level regression
 
 ## WebP
 
-- `webp/static-transparent.webp` — fixed lossless WebP produced from the repository-owned extension icon with the bundled official `cwebp`, including real transparency.
+- `webp/static-transparent.webp` — fixed lossless WebP produced from the repository-owned extension icon with libwebp `cwebp`, including real transparency.
+- `webp/hidden-rgb.webp` — fixed lossless WebP derived from the public-domain `blackbug.png` fixture used by Sharp, with deliberately nonzero RGB values under fully transparent pixels. Used to prove Sharp optimization can replace the file while keeping hidden transparent RGB intact.
 - `webp/animated.webp` — fixed two-frame animated WebP derived from the GIF fixture. Used for rejection coverage.
 
 ## GIF

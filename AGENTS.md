@@ -92,13 +92,13 @@ Primary implementation files:
 
 Use the strongest practical existing tool without introducing unnecessary infrastructure.
 
-- **PNG / APNG:** OxiPNG. Strong candidates may be raced; decoded pixels/frame controls decide whether a result is safe.
-- **JPEG:** MozJPEG `jpegtran`. Coefficient-level optimization avoids image-sample re-encoding for normal Compress.
-- **Static WebP:** official libwebp `cwebp`, lossless with exact transparent RGB preservation.
-- **GIF:** Gifsicle `-O3`, with frame/timing/loop validation.
-- **Static AVIF:** Sharp AVIF lossless encoding. Use source 8/10/12-bit depth when Sharp reports it. Visible decoded equivalence is sufficient; do not reintroduce custom high-bit precision hashing.
+- **PNG / APNG:** OxiPNG `-o 1`. For interlaced PNG, also try deinterlacing and let decoded pixels/frame controls decide whether it is safe. Do not reintroduce slower OxiPNG levels or Zopfli without benchmark evidence.
+- **JPEG:** MozJPEG `jpegtran` progressive `-fastcrush`. Coefficient-level optimization avoids image-sample re-encoding for normal Compress while skipping expensive progressive scan optimization.
+- **Static WebP:** Sharp lossless WebP effort 6 with `exact: true`.
+- **GIF:** Sharp GIF effort 7 with duplicate-frame preservation and frame/timing/loop validation.
+- **Static AVIF:** Sharp AVIF lossless effort 4. Use source 8/10/12-bit depth when Sharp reports it. Visible decoded equivalence is sufficient; do not reintroduce custom high-bit precision hashing.
 
-Sharp is also the common image decoder/metadata layer and resize implementation.
+Sharp is the common encoder for WebP/GIF/AVIF, image decoder/metadata layer, and resize implementation. OxiPNG and MozJPEG are the only separate native optimization tools retained because benchmarks showed they still justify their complexity.
 
 ## Resize contract
 
@@ -193,6 +193,14 @@ Synthetic images are appropriate for narrow edge conditions that are easiest to 
 When a real image exposes a regression, prefer adding a fixed fixture when privacy/licensing permit it. Record its provenance and reason in `test/fixtures/README.md`. Tests must copy fixtures to a temporary directory before exercising in-place compression or resize.
 
 Do not rely only on images generated at test runtime. Encoders often normalize away exactly the strange metadata/container details that regression fixtures are meant to preserve.
+
+### Compression benchmark fixtures
+
+Keep compression-performance tuning separate from regression testing. `benchmark/fixtures/` is a deliberately small corpus of realistic, redistributable images used to compare encoder runtime against output size. `test/fixtures/` remains the regression corpus for correctness and odd container/metadata behavior.
+
+Run `npm run benchmark:compression` for the benchmark corpus. Use `--runs 3` when making performance decisions and `--corpus regression` only when a regression fixture is useful for a focused comparison. Benchmark candidates must still run through the normal compression snapshot validation; a smaller candidate that fails validation is evidence against that strategy, not a usable result.
+
+Keep the benchmark corpus under 10 image files. Record source, license/provenance, and any deterministic derivation steps in `benchmark/fixtures/README.md`. Benchmark fixtures must remain excluded from the packaged VSIX.
 
 ## Native tools and packaging
 

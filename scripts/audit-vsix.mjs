@@ -56,19 +56,15 @@ const required = [
   "extension/THIRD_PARTY_NOTICES.md",
   "extension/changelog.md",
   "extension/dist/extension.js",
+  "extension/images/compress-image-menu-item.png",
+  "extension/images/compress-image-snackbar-item.png",
   "extension/images/icon.png",
-  "extension/images/result.png",
   "extension/package.json",
   "extension/readme.md",
   `extension/vendor/oxipng/oxipng${executableSuffix}`,
   "extension/vendor/oxipng/LICENSE",
   `extension/vendor/mozjpeg/jpegtran${executableSuffix}`,
   "extension/vendor/mozjpeg/LICENSE.md",
-  `extension/vendor/libwebp/cwebp${executableSuffix}`,
-  "extension/vendor/libwebp/COPYING",
-  `extension/vendor/gifsicle/gifsicle${executableSuffix}`,
-  "extension/vendor/gifsicle/COPYING",
-  "extension/vendor/gifsicle/source/gifsicle-1.96.tar.gz",
   "extension/vendor/licenses/sharp-LICENSE",
   "extension/vendor/licenses/upng-LICENSE",
 ];
@@ -81,8 +77,10 @@ for (const requiredPath of required) {
 
 const forbidden = [
   /^extension\/(?:\.env|\.secrets\/|\.git\/)/,
-  /^extension\/(?:buildplan\.md|tsconfig\.json|package-lock\.json|\.DS_Store)$/,
-  /^extension\/(?:src|test|scripts)\//,
+  /^extension\/(?:buildplan\.md|PUBLISHING\.md|tsconfig\.json|package-lock\.json|\.DS_Store)$/,
+  /^extension\/(?:benchmark|src|test|scripts)\//,
+  /^extension\/node_modules\/@343dev\//,
+  /^extension\/vendor\/(?:gifsicle|libwebp)\//,
 ];
 
 for (const entry of entries) {
@@ -110,7 +108,7 @@ for (const key of ["name", "version", "publisher"]) {
 
 const explorerMenu = manifestPackage.contributes?.menus?.["explorer/context"];
 const expectedWhen =
-  "isFileSystemResource && resourceScheme == file && resourceExtname =~ /\\.(png|apng|jpe?g|webp|gif|avif)$/i";
+  "resourceScheme == file && resourceExtname =~ /\\.(png|apng|jpe?g|webp|gif|avif)$/i";
 if (
   !Array.isArray(explorerMenu) ||
   explorerMenu.length !== 1 ||
@@ -126,36 +124,24 @@ const submenuLabels = new Map(
 );
 if (
   submenuLabels.get("compressImage.menu") !== "Compress Image" ||
-  submenuLabels.get("compressImage.resizeMenu") !== "Resize"
+  submenuLabels.size !== 1
 ) {
   throw new Error("VSIX Compress Image submenu contributions are unexpected");
 }
 
 const rootMenu = manifestPackage.contributes?.menus?.["compressImage.menu"];
-if (
-  !Array.isArray(rootMenu) ||
-  rootMenu.length !== 2 ||
-  rootMenu[0]?.command !== "compressImage.compressImage" ||
-  rootMenu[1]?.submenu !== "compressImage.resizeMenu"
-) {
-  throw new Error("VSIX Compress Image submenu contents are unexpected");
-}
-
-const resizeMenu =
-  manifestPackage.contributes?.menus?.["compressImage.resizeMenu"];
-const expectedResizeCommands = [
+const expectedCommands = [
+  "compressImage.compressImage",
   "compressImage.resize256",
   "compressImage.resize512",
   "compressImage.resize1080",
 ];
 if (
-  !Array.isArray(resizeMenu) ||
-  resizeMenu.length !== expectedResizeCommands.length ||
-  resizeMenu.some(
-    (item, index) => item?.command !== expectedResizeCommands[index],
-  )
+  !Array.isArray(rootMenu) ||
+  rootMenu.length !== expectedCommands.length ||
+  rootMenu.some((item, index) => item?.command !== expectedCommands[index])
 ) {
-  throw new Error("VSIX resize submenu contents are unexpected");
+  throw new Error("VSIX Compress Image submenu contents are unexpected");
 }
 
 const sharpTarget = expectedTarget.replace("win32-", "win32-");

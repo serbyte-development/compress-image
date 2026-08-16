@@ -1,11 +1,13 @@
 .gitignore
 AGENTS.md
 buildplan.md
+PUBLISHING.md
 .git/**
 .github/**
 .vscode/**
 src/**
 test/**
+benchmark/**
 scripts/**
 esbuild.mjs
 tsconfig.json

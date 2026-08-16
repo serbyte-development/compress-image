@@ -14,22 +14,6 @@ Compress Image includes or bundles the following third-party software. Their lic
 - License: BSD-style and included third-party terms
 - Packaged license: `vendor/mozjpeg/LICENSE.md`
 
-## libwebp 1.6.0
-
-- Project: https://chromium.googlesource.com/webm/libwebp/
-- License: BSD-style
-- Packaged license: `vendor/libwebp/COPYING`
-
-## Gifsicle 1.96
-
-- Project: https://www.lcdf.org/gifsicle/
-- Copyright (C) 1997-2025 Eddie Kohler
-- License: GNU GPL v2 only
-- Packaged license: `vendor/gifsicle/COPYING`
-- Matching upstream 1.96 source archive: `vendor/gifsicle/source/gifsicle-1.96.tar.gz`
-
-The Gifsicle executable is invoked as a separate command-line program. The packaged binary reports LCDF Gifsicle 1.96, and the matching upstream 1.96 source archive is shipped alongside it in each VSIX.
-
 ## Sharp
 
 - Project: https://sharp.pixelplumbing.com/
