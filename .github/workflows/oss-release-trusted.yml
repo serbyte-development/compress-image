@@ -9,7 +9,8 @@ on:
         type: string
       release_tag:
         description: GitHub release tag containing any exact prebuilt artifacts
-        required: true
+        required: false
+        default: ""
         type: string
       targets:
         description: Comma-separated trusted publishing targets
@@ -30,8 +31,8 @@ on:
         required: false
         default: .
         type: string
-      vscode_artifact_patterns:
-        description: Comma-separated GitHub Release asset patterns for exact VSIX publishing
+      vscode_artifact_names:
+        description: Comma-separated exact GitHub Release VSIX asset names
         required: false
         default: ""
         type: string
@@ -90,37 +91,34 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
 
       - name: Install VS Code extension dependencies
-        if: contains(inputs.targets, 'vscode_marketplace') && inputs.vscode_artifact_patterns == ''
+        if: contains(inputs.targets, 'vscode_marketplace') && inputs.vscode_artifact_names == ''
         working-directory: ${{ inputs.vscode_dir }}
         run: npm ci
       - name: Publish VS Code extension from source
-        if: contains(inputs.targets, 'vscode_marketplace') && inputs.vscode_artifact_patterns == ''
+        if: contains(inputs.targets, 'vscode_marketplace') && inputs.vscode_artifact_names == ''
         working-directory: ${{ inputs.vscode_dir }}
-        run: npx @vscode/vsce publish --oidc
+        run: npx @vscode/vsce publish --oidc --skip-duplicate
       - name: Download exact VS Code release artifacts
-        if: contains(inputs.targets, 'vscode_marketplace') && inputs.vscode_artifact_patterns != ''
+        if: contains(inputs.targets, 'vscode_marketplace') && inputs.vscode_artifact_names != ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           destination="$RUNNER_TEMP/oss-release-vscode"
           mkdir -p "$destination"
-          IFS=',' read -ra patterns <<< "${{ inputs.vscode_artifact_patterns }}"
-          for pattern in "${patterns[@]}"; do
-            gh release download "${{ inputs.release_tag }}" --repo "$GITHUB_REPOSITORY" --pattern "$pattern" --dir "$destination"
+          IFS=',' read -ra names <<< "${{ inputs.vscode_artifact_names }}"
+          for name in "${names[@]}"; do
+            gh release download "${{ inputs.release_tag }}" --repo "$GITHUB_REPOSITORY" --pattern "$name" --dir "$destination"
+            test -f "$destination/$name"
           done
       - name: Publish exact VS Code release artifacts
-        if: contains(inputs.targets, 'vscode_marketplace') && inputs.vscode_artifact_patterns != ''
+        if: contains(inputs.targets, 'vscode_marketplace') && inputs.vscode_artifact_names != ''
         run: |
           set -euo pipefail
           destination="$RUNNER_TEMP/oss-release-vscode"
-          mapfile -d '' packages < <(find "$destination" -type f -name '*.vsix' -print0 | sort -z)
-          if [ "${#packages[@]}" -eq 0 ]; then
-            echo "No VSIX release artifacts were downloaded" >&2
-            exit 1
-          fi
-          for package in "${packages[@]}"; do
-            npx --yes @vscode/vsce publish --oidc --packagePath "$package"
+          IFS=',' read -ra names <<< "${{ inputs.vscode_artifact_names }}"
+          for name in "${names[@]}"; do
+            npx --yes @vscode/vsce publish --oidc --packagePath "$destination/$name" --skip-duplicate
           done
 
       - name: Install MCP publisher
