@@ -68,9 +68,9 @@ const required = [
   "extension/vendor/libwebp/COPYING",
   `extension/vendor/gifsicle/gifsicle${executableSuffix}`,
   "extension/vendor/gifsicle/COPYING",
-  "extension/third_party/gifsicle/gifsicle-1.96.tar.gz",
-  "extension/third_party/licenses/sharp-LICENSE",
-  "extension/third_party/licenses/upng-LICENSE",
+  "extension/vendor/gifsicle/source/gifsicle-1.96.tar.gz",
+  "extension/vendor/licenses/sharp-LICENSE",
+  "extension/vendor/licenses/upng-LICENSE",
 ];
 
 for (const requiredPath of required) {

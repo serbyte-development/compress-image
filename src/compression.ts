@@ -350,7 +350,12 @@ export function snapshotsMatch(
   before: ImageSnapshot,
   after: ImageSnapshot,
 ): boolean {
-  return JSON.stringify(before) === JSON.stringify(after);
+  // Decoded RGBA comparison already protects real transparency. Do not reject
+  // a smaller candidate just because an optimizer removes an unused, fully
+  // opaque alpha channel from the container.
+  const { hasAlpha: _beforeHasAlpha, ...beforeComparable } = before;
+  const { hasAlpha: _afterHasAlpha, ...afterComparable } = after;
+  return JSON.stringify(beforeComparable) === JSON.stringify(afterComparable);
 }
 
 async function runTool(

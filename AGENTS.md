@@ -148,6 +148,8 @@ Different formats may have different validation strength:
 - selected metadata only when already exposed simply by Sharp
 - AVIF uses ordinary 8-bit decoded visible-image equivalence even for high-bit source files
 
+Do not require container-level alpha-channel presence when decoded RGBA pixels are identical. Removing an unused fully opaque alpha channel is a valid optimization.
+
 Do not assume every ancillary chunk, internal codec representation, or hidden precision detail must remain identical.
 
 If a stronger guarantee requires significant custom machinery, first ask whether the difference is visible or materially useful. Prefer the simpler contract when it is not.
@@ -181,6 +183,16 @@ npm run package:vsix
 `npm run check` covers TypeScript, tests, formatting, build, and bundle activation checks. `npm run package:vsix` packages and audits the current platform VSIX.
 
 Do not run expensive full release gates for tiny documentation-only changes. Run the smallest validation appropriate to the change.
+
+### Test fixtures
+
+Use both synthetic unit fixtures and fixed real-world regression fixtures.
+
+Synthetic images are appropriate for narrow edge conditions that are easiest to construct explicitly. Product-level behavior should also be exercised against checked-in files under `test/fixtures/`, especially files produced by real software or files that previously exposed a bug.
+
+When a real image exposes a regression, prefer adding a fixed fixture when privacy/licensing permit it. Record its provenance and reason in `test/fixtures/README.md`. Tests must copy fixtures to a temporary directory before exercising in-place compression or resize.
+
+Do not rely only on images generated at test runtime. Encoders often normalize away exactly the strange metadata/container details that regression fixtures are meant to preserve.
 
 ## Native tools and packaging
 

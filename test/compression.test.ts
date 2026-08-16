@@ -312,6 +312,37 @@ test("compresses an inefficient PNG and preserves decoded pixels and checked fie
   });
 });
 
+test("allows PNG optimization to remove an unused fully opaque alpha channel", async () => {
+  await withTempDir(async (dir) => {
+    const file = path.join(dir, "opaque-rgba.png");
+    const pixels = Buffer.alloc(128 * 128 * 4);
+    for (let pixel = 0; pixel < 128 * 128; pixel += 1) {
+      pixels[pixel * 4] = pixel & 0xff;
+      pixels[pixel * 4 + 1] = (pixel >> 2) & 0xff;
+      pixels[pixel * 4 + 2] = 180;
+      pixels[pixel * 4 + 3] = 255;
+    }
+
+    await sharp(pixels, { raw: { width: 128, height: 128, channels: 4 } })
+      .png({ compressionLevel: 0 })
+      .toFile(file);
+
+    const beforeMetadata = await sharp(file).metadata();
+    const before = await snapshotImage(file, "png");
+    const beforeBytes = (await stat(file)).size;
+    assert.equal(beforeMetadata.hasAlpha, true);
+
+    const result = await compressImage(file, tools);
+    const afterMetadata = await sharp(file).metadata();
+    const after = await snapshotImage(file, "png");
+
+    assert.equal(result.status, "compressed");
+    assert.ok((await stat(file)).size < beforeBytes);
+    assert.equal(afterMetadata.hasAlpha, false);
+    assert.ok(snapshotsMatch(before, after));
+  });
+});
+
 test("deinterlaces PNG when validation proves decoded pixels are unchanged", async () => {
   await withTempDir(async (dir) => {
     const file = path.join(dir, "interlaced.png");

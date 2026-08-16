@@ -44,7 +44,7 @@ Resize uses high-quality Lanczos3 resampling with Sharp's `fastShrinkOnLoad` dis
 | GIF        | Gifsicle 1.96            | Exact decoded frames, dimensions, frame timing, loop behavior, validated metadata fields                       |
 | AVIF       | Sharp 0.35.3 AVIF        | 8-bit decoded visible RGBA equivalence, dimensions, orientation/density, validated metadata fields             |
 
-"Validated metadata fields" for **Compress** means the fields explicitly compared by the extension: orientation, density, alpha presence, and ICC/EXIF/IPTC/XMP blobs when exposed by Sharp for that format. It is not a claim that every possible ancillary container chunk is preserved.
+"Validated metadata fields" for **Compress** means the fields explicitly compared by the extension: orientation, density, and ICC/EXIF/IPTC/XMP blobs when exposed by Sharp for that format. Decoded RGBA pixels already validate actual transparency, so an optimizer may remove an unused fully opaque alpha channel. It is not a claim that every possible ancillary container chunk is preserved.
 
 For **Resize**, dimensions necessarily change. The validator instead requires target width/aspect ratio, format, frame count/timing/loop, alpha presence, and preserved ICC/XMP data when present. Resize deliberately does **not** preserve EXIF or IPTC metadata. EXIF orientation is applied to the pixels before resizing so the visible image stays correctly oriented even after EXIF is removed.
 

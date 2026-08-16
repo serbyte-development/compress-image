@@ -9,6 +9,15 @@ import {
   UnsupportedImageError,
 } from "./compression.js";
 
+const MAX_DISPLAY_FILENAME_LENGTH = 14;
+
+function displayFilename(filePath: string): string {
+  const filename = path.basename(filePath);
+  return filename.length > MAX_DISPLAY_FILENAME_LENGTH
+    ? `${filename.slice(0, MAX_DISPLAY_FILENAME_LENGTH)}…`
+    : filename;
+}
+
 function selectedFile(resource?: vscode.Uri): vscode.Uri | undefined {
   return resource ?? vscode.window.activeTextEditor?.document.uri;
 }
@@ -52,10 +61,11 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!uri) return;
 
       try {
+        const filename = displayFilename(uri.fsPath);
         const result = await vscode.window.withProgress(
           {
             location: vscode.ProgressLocation.Notification,
-            title: `Compressing ${path.basename(uri.fsPath)}...`,
+            title: `Compressing ${filename}...`,
             cancellable: false,
           },
           () => compressImage(uri.fsPath, tools),
@@ -63,7 +73,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
         if (result.status === "unchanged") {
           void vscode.window.showInformationMessage(
-            `Compress Image: ${path.basename(uri.fsPath)} is already optimized.`,
+            `Compress Image: ${filename} is already optimized.`,
           );
           return;
         }
@@ -74,7 +84,7 @@ export function activate(context: vscode.ExtensionContext): void {
           .toFixed(1)
           .replace(/\.0$/, "");
         void vscode.window.showInformationMessage(
-          `Compressed ${path.basename(uri.fsPath)}: ${formatBytes(result.originalBytes)} → ${formatBytes(result.optimizedBytes)} (${percent}% smaller).`,
+          `Compressed ${filename}: ${formatBytes(result.originalBytes)} → ${formatBytes(result.optimizedBytes)} (${percent}% smaller).`,
         );
       } catch (error) {
         showOperationError(error);
@@ -90,10 +100,11 @@ export function activate(context: vscode.ExtensionContext): void {
         if (!uri) return;
 
         try {
+          const filename = displayFilename(uri.fsPath);
           const result = await vscode.window.withProgress(
             {
               location: vscode.ProgressLocation.Notification,
-              title: `Resizing ${path.basename(uri.fsPath)} to ${targetWidth} px wide...`,
+              title: `Resizing ${filename} to ${targetWidth} px wide...`,
               cancellable: false,
             },
             () => resizeImage(uri.fsPath, targetWidth, tools),
@@ -101,13 +112,13 @@ export function activate(context: vscode.ExtensionContext): void {
 
           if (result.status === "unchanged") {
             void vscode.window.showInformationMessage(
-              `Compress Image: ${path.basename(uri.fsPath)} is ${result.originalWidth} px wide; no resize needed for ${targetWidth} px target.`,
+              `Compress Image: ${filename} is ${result.originalWidth} px wide; no resize needed for ${targetWidth} px target.`,
             );
             return;
           }
 
           void vscode.window.showInformationMessage(
-            `Resized ${path.basename(uri.fsPath)}: ${result.originalWidth}×${result.originalHeight} → ${result.resizedWidth}×${result.resizedHeight} px, ${formatBytes(result.originalBytes)} → ${formatBytes(result.resizedBytes)}.`,
+            `Resized ${filename}: ${result.originalWidth}×${result.originalHeight} → ${result.resizedWidth}×${result.resizedHeight} px, ${formatBytes(result.originalBytes)} → ${formatBytes(result.resizedBytes)}.`,
           );
         } catch (error) {
           showOperationError(error);

@@ -10,8 +10,9 @@ const SOURCE_SHA256 =
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const destination = path.join(
   repoRoot,
-  "third_party",
+  "vendor",
   "gifsicle",
+  "source",
   `gifsicle-${VERSION}.tar.gz`,
 );
 

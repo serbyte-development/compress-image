@@ -26,7 +26,7 @@ Compress Image includes or bundles the following third-party software. Their lic
 - Copyright (C) 1997-2025 Eddie Kohler
 - License: GNU GPL v2 only
 - Packaged license: `vendor/gifsicle/COPYING`
-- Matching upstream 1.96 source archive: `third_party/gifsicle/gifsicle-1.96.tar.gz`
+- Matching upstream 1.96 source archive: `vendor/gifsicle/source/gifsicle-1.96.tar.gz`
 
 The Gifsicle executable is invoked as a separate command-line program. The packaged binary reports LCDF Gifsicle 1.96, and the matching upstream 1.96 source archive is shipped alongside it in each VSIX.
 
@@ -34,10 +34,10 @@ The Gifsicle executable is invoked as a separate command-line program. The packa
 
 - Project: https://sharp.pixelplumbing.com/
 - License: Apache-2.0
-- Packaged license: `third_party/licenses/sharp-LICENSE`
+- Packaged license: `vendor/licenses/sharp-LICENSE`
 
 ## UPNG.js
 
 - Project: https://github.com/photopea/UPNG.js
 - License: MIT
-- Packaged license: `third_party/licenses/upng-LICENSE`
+- Packaged license: `vendor/licenses/upng-LICENSE`
