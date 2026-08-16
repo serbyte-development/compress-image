@@ -1,22 +1,25 @@
 # Compress Image — Build Plan
 
-Build a small VS Code extension that lets a developer right-click an image in the Explorer and compress it in place with no configuration or format conversion.
+Build a small VS Code extension that lets a developer right-click an image in the Explorer to compress it or resize it to a few useful widths, in place, with no configuration or format conversion.
 
 This is a living build plan, not a rigid implementation spec. Use the best solution discovered while building, keep the product simple, and update the plan when real implementation or testing reveals a better direction.
 
 ## Product rules
 
-- Keep the original file format and image dimensions.
-- Keep v1 limited to formats where losslessness can be validated strongly enough for predictable in-place replacement.
-- Require identical decoded pixels/frames plus the format-specific animation controls and exposed metadata fields the validator explicitly compares.
-- Never replace the original unless the resulting file is smaller and valid.
-- Keep the user experience to one primary action: **Compress Image**.
+- Keep the original file format. Compression keeps dimensions unchanged; resize changes width only and derives height from the original aspect ratio.
+- Keep v1 compression best-effort lossless, with simple format-specific validation strong enough for predictable in-place replacement without bespoke complexity.
+- Compression requires matching decoded pixels/frames under the format-specific validation contract plus the animation controls and exposed metadata fields the validator explicitly compares. AVIF intentionally validates the 8-bit decoded visible image rather than exact high-bit sample precision.
+- Compression never replaces the original unless the result is smaller and valid. Resize replaces only after resize semantics validate and the resized intermediate has passed through the existing optimizer pipeline.
+- Resize never crops, pads, stretches, converts formats, or upscales.
+- Resize runs the existing format optimizer after resampling and before replacement.
+- Keep the Explorer UX to one **Compress Image** submenu with **Compress** and three fixed resize widths: 256 px, 512 px, and 1080 px.
 - Support as many common image formats as can be handled strongly and reliably without bloating the extension.
 
 ## Build checklist
 
 - [x] Establish the minimal VS Code extension structure and a fast local development/test loop.
 - [x] Implement the Explorer right-click **Compress Image** workflow for supported image files.
+- [x] Add **Compress Image ▸ Resize ▸ 256 / 512 / 1080 px** using width-only high-quality resampling, no upscaling, and post-resize optimization.
 - [x] Build the compression layer around the strongest practical optimizer(s) for each supported format, allowing the exact tool choices and strategy to evolve from testing.
 - [x] Make compression safe: validate decoded output and explicitly checked format fields, avoid destructive writes, and keep the original whenever optimization does not produce a real win.
 - [x] Give concise success, no-op, unsupported-format, and failure feedback inside VS Code.
@@ -28,10 +31,13 @@ This is a living build plan, not a rigid implementation spec. Use the best solut
 
 ## Current implementation notes
 
-- Supported in v1: PNG/APNG, JPEG, static WebP, and GIF. Animated WebP is rejected safely rather than modified.
+- Supported in v1: PNG/APNG, JPEG, static WebP, GIF, and normal static 8/10/12-bit AVIF. Animated WebP plus AVIF image-sequence/multi-image containers are rejected safely rather than modified. HEIC is intentionally unsupported.
+- Explorer UX is `Compress Image ▸ Compress` or `Compress Image ▸ Resize ▸ 256 px / 512 px / 1080 px`. Resize targets rendered width, preserves aspect ratio, never upscales, and retains the source format. Static PNG, JPEG, static WebP, GIF, and normal static 8/10/12-bit AVIF resize; APNG and animated WebP resize reject clearly rather than flattening animation, while AVIF sequences/multi-image AVIF reject for both actions.
+- Resize uses Sharp Lanczos3 resampling with `fastShrinkOnLoad: false` to favor quality over aggressive decoder-side shrinking. Static-image EXIF orientation is applied to pixels before resizing, then EXIF/IPTC metadata is intentionally omitted from the resized result; ICC/XMP are preserved when present. APNG identity is detected from its animation control chunk and rejected before no-upscale handling, including single-frame APNGs. WebP animation identity is detected from RIFF animation features/chunks rather than frame count alone so single-frame animation containers are also rejected. AVIF relies on Sharp decode support plus the reported page count rather than a custom container parser: unsupported sequence containers fail safely, while decoded multi-image AVIF with multiple pages is rejected. The resized intermediate is validated for dimensions, frame count/timing/loop, alpha, ICC, and XMP before the existing format-specific optimizer runs.
 - PNG/APNG uses OxiPNG 10.2.0. Normal files race `-o max` against benchmark-selected Zopfli (`-o max --fast -z --zi 8`) while small enough to keep latency practical. Interlaced inputs also race a deinterlaced `-o max` candidate, with Zopfli applied to the deinterlaced path; only candidates identical under decoded-pixel/frame-control and checked-field validation can win. Local representative benchmarks showed `-o max` costs about the same as `-o 6`, deinterlacing materially reduced the interlaced sample, and higher Zopfli iteration counts had diminishing returns.
 - JPEG uses MozJPEG 4.1.5 `jpegtran`, built as a static coefficient-level transcoder from checksum-pinned upstream source during setup. Standard baseline Huffman optimization races MozJPEG progressive/jpegrescan optimization without decoding/re-encoding image samples. The build disables SIMD to avoid a NASM/Yasm packaging dependency; this changes speed, not JPEG coefficients or compression decisions.
 - Static WebP uses Google's official statically linked libwebp 1.6.0 `cwebp` binaries with maximum lossless preset, `-exact`, metadata copying, and multithreading. This preserves RGB values under fully transparent pixels; automated coverage verifies that edge case. Official binaries cover macOS ARM/x64, Linux ARM64/x64, and Windows x64.
+- Normal static 8/10/12-bit AVIF uses Sharp 0.35.3 AVIF lossless encoding at effort 9. Compression still uses the common candidate contract, but AVIF deliberately uses the existing simple 8-bit decoded visible-image snapshot rather than bespoke full-precision hashing. Sharp is asked to retain source AVIF bit depth when it reports 8/10/12-bit input, but exact high-bit sample precision is not guaranteed and may normalize during decode/re-encode. Resize uses width-only Lanczos3, keeps source format and requested AVIF bit depth, strips EXIF/IPTC, trivially preserves ICC/XMP when present, validates dimensions/visible semantics, then runs the same effort-9 AVIF candidate stage. Sequence/multi-image AVIF remains rejected.
 - GIF uses Gifsicle. Sharp remains the decoder/validator and runtime image metadata layer, not the WebP encoder.
 - Output is decoded and compared against the original before replacement. APNG validation checks every frame plus timing/loop/frame controls; GIF validation checks decoded frames/timing/loop; orientation, density, alpha presence, and ICC/EXIF/IPTC/XMP blobs are compared when exposed by Sharp. This does not claim preservation of every possible ancillary container chunk.
 - Native tool acquisition is checksum-pinned. OxiPNG and official libwebp binaries are fetched per platform; MozJPEG is compiled with a dev-only cross-platform CMake runtime so local/CI packaging does not depend on a system CMake install. Native VSIX packaging is platform-tagged. macOS arm64 packaging/install/runtime behavior is verified locally. macOS x64 and Linux arm64 also pass clean platform-native dependency installation, the full compression test suite, bundle activation checking, runtime audit, packaging, and VSIX content auditing; their four bundled native executables were confirmed to match the target architecture. CI is configured for macOS arm64/x64, Linux arm64/x64, and Windows x64. Linux x64 and Windows x64 still need green CI runs before cross-platform verification is complete. Windows ARM64 is intentionally unsupported because the selected OxiPNG/libwebp release path does not provide the required official native binaries there.

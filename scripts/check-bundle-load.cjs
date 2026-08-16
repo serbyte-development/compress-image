@@ -20,10 +20,15 @@ const extension = require("../dist/extension.js");
 const context = { subscriptions: [], extensionPath: process.cwd() };
 extension.activate(context);
 
-if (!registeredCommands.has("compressImage.compressImage")) {
-  throw new Error(
-    "Bundle did not register compressImage.compressImage during activation",
-  );
+for (const command of [
+  "compressImage.compressImage",
+  "compressImage.resize256",
+  "compressImage.resize512",
+  "compressImage.resize1080",
+]) {
+  if (!registeredCommands.has(command)) {
+    throw new Error(`Bundle did not register ${command} during activation`);
+  }
 }
 
 console.log("Bundle load and command registration check passed.");

@@ -5,29 +5,51 @@ import {
   formatBytes,
   getBundledToolPaths,
   getImageFormat,
+  resizeImage,
   UnsupportedImageError,
 } from "./compression.js";
+
+function selectedFile(resource?: vscode.Uri): vscode.Uri | undefined {
+  return resource ?? vscode.window.activeTextEditor?.document.uri;
+}
+
+function validateResource(resource?: vscode.Uri): vscode.Uri | undefined {
+  const uri = selectedFile(resource);
+  if (!uri || uri.scheme !== "file") {
+    void vscode.window.showWarningMessage(
+      "Compress Image: select a local image file first.",
+    );
+    return undefined;
+  }
+
+  if (!getImageFormat(uri.fsPath)) {
+    void vscode.window.showWarningMessage(
+      `Compress Image: ${path.extname(uri.fsPath) || "this file"} is not supported.`,
+    );
+    return undefined;
+  }
+
+  return uri;
+}
+
+function showOperationError(error: unknown): void {
+  if (error instanceof UnsupportedImageError) {
+    void vscode.window.showWarningMessage(`Compress Image: ${error.message}.`);
+    return;
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+  void vscode.window.showErrorMessage(`Compress Image failed: ${message}`);
+}
 
 export function activate(context: vscode.ExtensionContext): void {
   const tools = getBundledToolPaths(context.extensionPath);
 
-  const command = vscode.commands.registerCommand(
+  const compressCommand = vscode.commands.registerCommand(
     "compressImage.compressImage",
     async (resource?: vscode.Uri) => {
-      const uri = resource ?? vscode.window.activeTextEditor?.document.uri;
-      if (!uri || uri.scheme !== "file") {
-        void vscode.window.showWarningMessage(
-          "Compress Image: select a local image file first.",
-        );
-        return;
-      }
-
-      if (!getImageFormat(uri.fsPath)) {
-        void vscode.window.showWarningMessage(
-          `Compress Image: ${path.extname(uri.fsPath) || "this file"} is not supported.`,
-        );
-        return;
-      }
+      const uri = validateResource(resource);
+      if (!uri) return;
 
       try {
         const result = await vscode.window.withProgress(
@@ -55,22 +77,46 @@ export function activate(context: vscode.ExtensionContext): void {
           `Compressed ${path.basename(uri.fsPath)}: ${formatBytes(result.originalBytes)} → ${formatBytes(result.optimizedBytes)} (${percent}% smaller).`,
         );
       } catch (error) {
-        if (error instanceof UnsupportedImageError) {
-          void vscode.window.showWarningMessage(
-            `Compress Image: ${error.message}.`,
-          );
-          return;
-        }
-
-        const message = error instanceof Error ? error.message : String(error);
-        void vscode.window.showErrorMessage(
-          `Compress Image failed: ${message}`,
-        );
+        showOperationError(error);
       }
     },
   );
 
-  context.subscriptions.push(command);
+  const resizeCommands = [256, 512, 1080].map((targetWidth) =>
+    vscode.commands.registerCommand(
+      `compressImage.resize${targetWidth}`,
+      async (resource?: vscode.Uri) => {
+        const uri = validateResource(resource);
+        if (!uri) return;
+
+        try {
+          const result = await vscode.window.withProgress(
+            {
+              location: vscode.ProgressLocation.Notification,
+              title: `Resizing ${path.basename(uri.fsPath)} to ${targetWidth} px wide...`,
+              cancellable: false,
+            },
+            () => resizeImage(uri.fsPath, targetWidth, tools),
+          );
+
+          if (result.status === "unchanged") {
+            void vscode.window.showInformationMessage(
+              `Compress Image: ${path.basename(uri.fsPath)} is ${result.originalWidth} px wide; no resize needed for ${targetWidth} px target.`,
+            );
+            return;
+          }
+
+          void vscode.window.showInformationMessage(
+            `Resized ${path.basename(uri.fsPath)}: ${result.originalWidth}×${result.originalHeight} → ${result.resizedWidth}×${result.resizedHeight} px, ${formatBytes(result.originalBytes)} → ${formatBytes(result.resizedBytes)}.`,
+          );
+        } catch (error) {
+          showOperationError(error);
+        }
+      },
+    ),
+  );
+
+  context.subscriptions.push(compressCommand, ...resizeCommands);
 }
 
 export function deactivate(): void {}

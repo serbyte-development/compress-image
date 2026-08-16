@@ -110,14 +110,52 @@ for (const key of ["name", "version", "publisher"]) {
 
 const explorerMenu = manifestPackage.contributes?.menus?.["explorer/context"];
 const expectedWhen =
-  "isFileSystemResource && resourceScheme == file && resourceExtname =~ /\\.(png|apng|jpe?g|webp|gif)$/i";
+  "isFileSystemResource && resourceScheme == file && resourceExtname =~ /\\.(png|apng|jpe?g|webp|gif|avif)$/i";
 if (
   !Array.isArray(explorerMenu) ||
   explorerMenu.length !== 1 ||
-  explorerMenu[0]?.command !== "compressImage.compressImage" ||
+  explorerMenu[0]?.submenu !== "compressImage.menu" ||
   explorerMenu[0]?.when !== expectedWhen
 ) {
   throw new Error("VSIX Explorer context-menu format scope is unexpected");
+}
+
+const submenus = manifestPackage.contributes?.submenus ?? [];
+const submenuLabels = new Map(
+  submenus.map((submenu) => [submenu.id, submenu.label]),
+);
+if (
+  submenuLabels.get("compressImage.menu") !== "Compress Image" ||
+  submenuLabels.get("compressImage.resizeMenu") !== "Resize"
+) {
+  throw new Error("VSIX Compress Image submenu contributions are unexpected");
+}
+
+const rootMenu = manifestPackage.contributes?.menus?.["compressImage.menu"];
+if (
+  !Array.isArray(rootMenu) ||
+  rootMenu.length !== 2 ||
+  rootMenu[0]?.command !== "compressImage.compressImage" ||
+  rootMenu[1]?.submenu !== "compressImage.resizeMenu"
+) {
+  throw new Error("VSIX Compress Image submenu contents are unexpected");
+}
+
+const resizeMenu =
+  manifestPackage.contributes?.menus?.["compressImage.resizeMenu"];
+const expectedResizeCommands = [
+  "compressImage.resize256",
+  "compressImage.resize512",
+  "compressImage.resize1080",
+];
+if (
+  !Array.isArray(resizeMenu) ||
+  resizeMenu.length !== expectedResizeCommands.length ||
+  resizeMenu.some(
+    (item, index) => item?.command !== expectedResizeCommands[index],
+  )
+) {
+  throw new Error("VSIX resize submenu contents are unexpected");
 }
 
 const sharpTarget = expectedTarget.replace("win32-", "win32-");

@@ -1,7 +1,7 @@
 {
   "name": "compress-image",
   "displayName": "Compress Image",
-  "description": "One-click local validated-lossless compression for PNG/APNG, JPEG, static WebP, and GIF in VS Code and Cursor.",
+  "description": "Best-effort lossless image compression plus simple width-based resizing in VS Code and Cursor.",
   "version": "0.1.0",
   "publisher": "serbytedevelopment",
   "license": "MIT",
@@ -29,6 +29,8 @@
     "compress image",
     "optimize image",
     "image optimization",
+    "resize image",
+    "image resize",
     "png",
     "png optimizer",
     "jpeg",
@@ -39,6 +41,8 @@
     "webp optimizer",
     "gif",
     "gif optimizer",
+    "avif",
+    "avif optimizer",
     "oxipng",
     "gifsicle",
     "frontend",
@@ -66,15 +70,79 @@
     "commands": [
       {
         "command": "compressImage.compressImage",
-        "title": "Compress Image"
+        "title": "Compress",
+        "category": "Compress Image"
+      },
+      {
+        "command": "compressImage.resize256",
+        "title": "256 px",
+        "category": "Compress Image: Resize"
+      },
+      {
+        "command": "compressImage.resize512",
+        "title": "512 px",
+        "category": "Compress Image: Resize"
+      },
+      {
+        "command": "compressImage.resize1080",
+        "title": "1080 px",
+        "category": "Compress Image: Resize"
+      }
+    ],
+    "submenus": [
+      {
+        "id": "compressImage.menu",
+        "label": "Compress Image"
+      },
+      {
+        "id": "compressImage.resizeMenu",
+        "label": "Resize"
       }
     ],
     "menus": {
       "explorer/context": [
         {
-          "command": "compressImage.compressImage",
-          "when": "isFileSystemResource && resourceScheme == file && resourceExtname =~ /\\.(png|apng|jpe?g|webp|gif)$/i",
+          "submenu": "compressImage.menu",
+          "when": "isFileSystemResource && resourceScheme == file && resourceExtname =~ /\\.(png|apng|jpe?g|webp|gif|avif)$/i",
           "group": "navigation@20"
+        }
+      ],
+      "compressImage.menu": [
+        {
+          "command": "compressImage.compressImage",
+          "group": "1_actions@1"
+        },
+        {
+          "submenu": "compressImage.resizeMenu",
+          "group": "2_resize@1"
+        }
+      ],
+      "compressImage.resizeMenu": [
+        {
+          "command": "compressImage.resize256",
+          "group": "1_sizes@1"
+        },
+        {
+          "command": "compressImage.resize512",
+          "group": "1_sizes@2"
+        },
+        {
+          "command": "compressImage.resize1080",
+          "group": "1_sizes@3"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "compressImage.resize256",
+          "when": "false"
+        },
+        {
+          "command": "compressImage.resize512",
+          "when": "false"
+        },
+        {
+          "command": "compressImage.resize1080",
+          "when": "false"
         }
       ]
     }

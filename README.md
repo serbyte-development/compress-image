@@ -9,15 +9,17 @@
 [![Open VSX Version](https://img.shields.io/open-vsx/v/serbytedevelopment/compress-image)](https://open-vsx.org/extension/serbytedevelopment/compress-image)
 -->
 
-Shrink supported raster image assets in place from VS Code with validation-backed lossless output — no uploads, no quality slider, no configuration.
+Compress or resize supported raster image assets in place from VS Code — no uploads, no quality slider, no configuration.
 
 ![Compress Image result in VS Code](images/result.png)
 
-- **One action.** Right-click a supported image in the Explorer and choose **Compress Image**.
-- **Validation-backed lossless output.** A candidate is accepted only when decoded pixels/frames and the format-specific fields checked by the extension match the original.
-- **Never grows a file.** The original stays untouched unless a validated candidate is smaller.
-- **Local and private.** Compression runs on your machine with bundled optimizers; images are never uploaded.
-- **Strict format scope.** PNG/APNG, JPEG, static WebP, and GIF are supported in v0.1.0.
+- **Simple Explorer menu.** Right-click a supported image and choose **Compress Image ▸ Compress** or **Resize ▸ 256 / 512 / 1080 px**.
+- **Best-effort lossless compression.** A compression candidate is accepted only when it is smaller and matches the format-specific decoded validation used by the extension. AVIF intentionally uses simple 8-bit visible-image validation, so high-bit sample precision is not guaranteed exact.
+- **Compression never grows a file.** The original stays untouched unless a validated compression candidate is smaller.
+- **Width-only resize.** Resize preserves aspect ratio, never crops/pads/stretches, never changes format, and never upscales.
+- **Optimize after resize.** Resized output is passed through the same format-specific optimizer pipeline before replacement.
+- **Local and private.** Compression and resize run on your machine; images are never uploaded.
+- **Strict format scope.** PNG/APNG, JPEG, static WebP, GIF, and normal static 8/10/12-bit AVIF are supported in v0.1.0.
 
 **Developed & maintained by [Serbyte Development](https://www.serbyte.net/)** · [GitHub](https://github.com/Serbyte-Development)
 
@@ -25,9 +27,12 @@ Shrink supported raster image assets in place from VS Code with validation-backe
 
 1. Find a supported image in the VS Code Explorer.
 2. Right-click it.
-3. Select **Compress Image**.
+3. Open **Compress Image**.
+4. Choose **Compress** or **Resize ▸ 256 px / 512 px / 1080 px**.
 
-The file is optimized in place only when the result is both smaller and identical under the format-specific validation described below. VS Code shows the before/after size and percentage saved.
+**Compress** optimizes in place only when the result is both smaller and matches the format-specific validation described below. **Resize** treats the selected number as target width, preserves aspect ratio, skips images already at or below that width, then optimizes the resized result before replacement.
+
+Resize uses high-quality Lanczos3 resampling with Sharp's `fastShrinkOnLoad` disabled to favor quality over aggressive decoder-side shrinking. It does not crop, pad, stretch, or convert the image. JPEG resizing necessarily re-encodes image samples. Static PNG, JPEG, static WebP, GIF, and normal static 8/10/12-bit AVIF resize in place; animated GIF keeps frame count, timing, and loop behavior. APNG and animated WebP resize are rejected clearly rather than flattened or corrupted; their **Compress** action remains supported. AVIF image sequences and multi-image AVIF are rejected for both actions.
 
 ## Supported formats
 
@@ -37,10 +42,13 @@ The file is optimized in place only when the result is both smaller and identica
 | JPEG / JPG | MozJPEG 4.1.5 `jpegtran` | Exact decoded RGBA pixels, dimensions, orientation/density, validated metadata fields                          |
 | WebP       | libwebp 1.6.0 `cwebp`    | Exact decoded RGBA pixels including hidden RGB under transparent pixels, dimensions, validated metadata fields |
 | GIF        | Gifsicle 1.96            | Exact decoded frames, dimensions, frame timing, loop behavior, validated metadata fields                       |
+| AVIF       | Sharp 0.35.3 AVIF        | 8-bit decoded visible RGBA equivalence, dimensions, orientation/density, validated metadata fields             |
 
-"Validated metadata fields" means the fields explicitly compared by the extension: orientation, density, alpha presence, and ICC/EXIF/IPTC/XMP blobs when exposed by Sharp for that format. It is not a claim that every possible ancillary container chunk is preserved.
+"Validated metadata fields" for **Compress** means the fields explicitly compared by the extension: orientation, density, alpha presence, and ICC/EXIF/IPTC/XMP blobs when exposed by Sharp for that format. It is not a claim that every possible ancillary container chunk is preserved.
 
-Animated WebP is intentionally rejected rather than modified. AVIF, TIFF, BMP, and other formats are not supported in v0.1.0.
+For **Resize**, dimensions necessarily change. The validator instead requires target width/aspect ratio, format, frame count/timing/loop, alpha presence, and preserved ICC/XMP data when present. Resize deliberately does **not** preserve EXIF or IPTC metadata. EXIF orientation is applied to the pixels before resizing so the visible image stays correctly oriented even after EXIF is removed.
+
+Animated WebP, AVIF image sequences, and multi-image AVIF are intentionally rejected rather than modified. HEIC, TIFF, BMP, and other formats are not supported in v0.1.0.
 
 ## Safety model
 
@@ -55,7 +63,7 @@ For every candidate it:
 5. Replaces the original only after validation passes.
 6. Keeps a temporary backup during replacement and restores it if the write fails.
 
-PNG/APNG validation includes frame-level controls. JPEG orientation/density and exposed ICC/EXIF/IPTC/XMP metadata are compared. Static WebP uses `-exact` so RGB values under fully transparent pixels remain intact and is still rejected unless decoded pixels and validated fields match.
+PNG/APNG compression validation includes frame-level controls. JPEG compression compares orientation/density and exposed ICC/EXIF/IPTC/XMP metadata. AVIF uses the same simple metadata checks plus 8-bit decoded visible-image equivalence; Sharp is asked to retain the source 8/10/12-bit AVIF depth, but exact high-bit sample precision is not part of the validation contract and may normalize during decode/re-encode. Resize has a simpler contract: EXIF/IPTC are stripped, visible orientation is baked into static-image pixels, and ICC/XMP are preserved when present. Static WebP compression uses `-exact` so RGB values under fully transparent pixels remain intact and is still rejected unless decoded pixels and validated fields match.
 
 ## Compression strategy
 
@@ -63,6 +71,7 @@ PNG/APNG validation includes frame-level controls. JPEG orientation/density and 
 - **JPEG:** races optimized progressive and baseline coefficient-level MozJPEG `jpegtran` output. Replacement still requires identical decoded pixels and validated fields.
 - **WebP:** uses official libwebp `cwebp` at maximum lossless preset with exact transparent RGB preservation.
 - **GIF:** uses Gifsicle `-O3`, then validates the animation before replacement.
+- **AVIF:** normal static 8/10/12-bit AVIF uses Sharp lossless encoding at effort 9. Source bit depth is requested on encode when exposed by Sharp. Sequence/multi-image containers are rejected; candidates still must be smaller and match the 8-bit visible-image snapshot plus checked fields.
 
 ## Platforms
 
