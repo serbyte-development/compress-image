@@ -1,0 +1,29 @@
+version: 1
+repository: Serbyte-Development/compress-image
+branch: main
+targets:
+  - github
+  - vscode_marketplace
+  - open_vsx
+artifacts:
+  workflow: release.yml
+  event: push
+  names:
+    - compress-image-darwin-arm64
+    - compress-image-darwin-x64
+    - compress-image-linux-arm64
+    - compress-image-linux-x64
+    - compress-image-win32-x64
+github:
+  tagPrefix: v
+  assets: []
+  artifactPatterns:
+    - "*.vsix"
+vscode_marketplace:
+  packageDir: .
+  artifactPatterns:
+    - "*.vsix"
+open_vsx:
+  packageDir: .
+  artifactPatterns:
+    - "*.vsix"

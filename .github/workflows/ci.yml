@@ -24,8 +24,8 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
@@ -33,7 +33,7 @@ jobs:
       - run: npm run audit:runtime
       - run: npm run check
       - run: node scripts/package-vsix.mjs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: compress-image-${{ matrix.target }}
           path: "*.vsix"

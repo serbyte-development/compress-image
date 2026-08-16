@@ -9,7 +9,7 @@
 [![Open VSX Version](https://img.shields.io/open-vsx/v/serbytedevelopment/compress-image)](https://open-vsx.org/extension/serbytedevelopment/compress-image)
 -->
 
-Compress and resize images directly from the VS Code Explorer. No uploads, no quality sliders, and no configuration.
+Compress and resize images directly from the VS Code Explorer.
 
 ![Compress Image Explorer menu](images/compress-image-menu-item.png)
 

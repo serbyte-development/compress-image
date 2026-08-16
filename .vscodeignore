@@ -13,6 +13,7 @@ esbuild.mjs
 tsconfig.json
 package-lock.json
 .prettierignore
+.oss-release.yaml
 *.vsix
 .env*
 .secrets/**

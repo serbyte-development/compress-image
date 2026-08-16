@@ -77,6 +77,7 @@ for (const requiredPath of required) {
 
 const forbidden = [
   /^extension\/(?:\.env|\.secrets\/|\.git\/)/,
+  /^extension\/\.oss-release\.ya?ml$/,
   /^extension\/(?:buildplan\.md|PUBLISHING\.md|tsconfig\.json|package-lock\.json|\.DS_Store)$/,
   /^extension\/(?:benchmark|src|test|scripts)\//,
   /^extension\/node_modules\/@343dev\//,

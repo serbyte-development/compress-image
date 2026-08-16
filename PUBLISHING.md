@@ -1,15 +1,16 @@
 # Publishing Compress Image
 
-Public release is a manual gate. Build and validation can be automated, but do not publish a Marketplace/Open VSX version until the release commit and all five platform packages have passed CI.
+Compress Image releases are orchestrated by the workspace `oss-release` tool. Publishing remains a hard manual gate: checks and dry runs are safe, but do not create the release tag or submit v0.1.0 to either registry without Austin's explicit approval immediately before the real publish command.
 
 ## Distribution targets
 
-Publish the same version and extension identity to both registries:
+The same `0.1.0` extension identity is released to:
 
-- Visual Studio Marketplace: `serbytedevelopment.compress-image` for VS Code.
-- Open VSX: namespace `serbytedevelopment`, extension `compress-image`. Cursor uses an Open VSX-backed extension gallery, so this is the distribution path for Cursor.
+- GitHub Releases — durable source of the exact platform VSIX files.
+- Visual Studio Marketplace — `serbytedevelopment.compress-image` for VS Code.
+- Open VSX — `serbytedevelopment/compress-image` for Cursor and other Open VSX consumers.
 
-v0.1.0 ships five platform-specific VSIX packages:
+v0.1.0 has no universal fallback package. It ships exactly five platform-specific VSIX files:
 
 - `darwin-arm64`
 - `darwin-x64`
@@ -17,66 +18,85 @@ v0.1.0 ships five platform-specific VSIX packages:
 - `linux-x64`
 - `win32-x64`
 
-Do not publish an unqualified fallback VSIX. Unsupported platforms should remain unsupported instead of receiving a package with incompatible native binaries.
+## Exact artifact flow
+
+`.oss-release.yaml` defines `release.yml` as the project's artifact workflow. When the release tag is pushed, that workflow builds, validates, packages, and uploads one GitHub Actions artifact for each supported platform. It does **not** create the GitHub Release itself.
+
+`oss-release` then:
+
+1. Waits for the tagged five-platform artifact workflow to succeed.
+2. Downloads the exact five VSIX outputs.
+3. Creates the GitHub Release with those VSIX files.
+4. Publishes those same local files to Open VSX, one at a time.
+5. Dispatches the trusted Marketplace workflow, which downloads the same VSIX files from the GitHub Release and publishes them one at a time with OIDC.
+6. Verifies the configured registries after publishing.
+
+No registry should independently rebuild the extension when artifact mode is configured.
 
 ## One-time account setup
 
 ### Visual Studio Marketplace
 
-1. Create or confirm a Visual Studio Marketplace publisher whose immutable ID is `serbytedevelopment`.
-2. Authorize the publishing identity for that publisher.
-3. For an initial manual release, a Marketplace PAT with `Marketplace (Manage)` can be used by `vsce`. Microsoft is retiring global Azure DevOps PATs on December 1, 2026, so move automated publishing to Microsoft Entra ID before relying on long-lived automation.
+1. Confirm the publisher ID is `serbytedevelopment`.
+2. Configure Marketplace trusted publishing for `Serbyte-Development/compress-image` and `.github/workflows/oss-release-trusted.yml`.
+3. Keep `id-token: write` on that generated workflow.
+
+The release workflow uses `vsce publish --oidc`; a long-lived Marketplace PAT is not part of the normal automated release path.
 
 ### Open VSX
 
-1. Create an Eclipse account and link it to the GitHub account used for Open VSX.
-2. Sign the Open VSX Publisher Agreement.
-3. Generate an Open VSX access token.
-4. Create the namespace once, if it does not already exist:
+1. Sign in with the Eclipse/Open VSX account and accept the publisher agreement if still required.
+2. Confirm namespace `serbytedevelopment` exists and is controlled by Serbyte Development.
+3. Put the Open VSX token in `OVSX_PAT` or the git-ignored `projects/oss-release/.secrets` file used by the workspace release tool.
+
+Never commit or print the token.
+
+## Before the real release
+
+The release commit must already contain version `0.1.0`, be on `main`, have a clean working tree, and be pushed to the private/public destination repo as appropriate for the launch stage.
+
+Run the ordinary extension validation first:
 
 ```sh
-npx ovsx create-namespace serbytedevelopment -p "$OVSX_PAT"
+npm run package:vsix
 ```
 
-5. Claim namespace ownership separately if the publisher should show as verified.
-
-## Release flow
-
-1. Confirm `package.json` contains the intended version.
-2. Commit the release state on `main`.
-3. Push `main` and wait for the full five-platform CI matrix to pass.
-4. Create and push the matching version tag, for example `v0.1.0`.
-5. The release workflow builds and audits all five target-specific VSIX packages and attaches them to a GitHub Release.
-6. Download the five VSIX files from that release.
-7. Publish every target-specific VSIX to the Visual Studio Marketplace.
-8. Publish the same five VSIX files to Open VSX.
-9. Verify the listing, screenshots, README, changelog, icon, supported platforms, and install behavior from a clean VS Code profile.
-10. Verify the Open VSX listing and then confirm the extension appears in Cursor. Cursor synchronization can lag behind Open VSX publication.
-11. Once both listings are live, uncomment the Marketplace/Open VSX badges near the top of `README.md` and ship that as the next repository-only documentation change or next patch release.
-
-## Publishing commands
-
-Authenticate without writing tokens into the repository or shell history. Then publish each package explicitly so there is no accidental generic package.
-
-Visual Studio Marketplace:
+Then exercise the release orchestrator without publishing:
 
 ```sh
-npx vsce publish --packagePath compress-image-darwin-arm64-0.1.0.vsix
-npx vsce publish --packagePath compress-image-darwin-x64-0.1.0.vsix
-npx vsce publish --packagePath compress-image-linux-arm64-0.1.0.vsix
-npx vsce publish --packagePath compress-image-linux-x64-0.1.0.vsix
-npx vsce publish --packagePath compress-image-win32-x64-0.1.0.vsix
+/Users/austinserb/Desktop/agent-workspace/tools/oss-release/run check \
+  --repo /Users/austinserb/Desktop/agent-workspace/projects/compress-image \
+  --version 0.1.0
+
+/Users/austinserb/Desktop/agent-workspace/tools/oss-release/run publish \
+  --repo /Users/austinserb/Desktop/agent-workspace/projects/compress-image \
+  --version 0.1.0 \
+  --dry-run
 ```
 
-Open VSX:
+The dry run should show one tag operation, a GitHub Release using collected `*.vsix` artifacts, Open VSX publishing from collected `*.vsix` artifacts, and a Marketplace trusted-workflow dispatch carrying `release_tag=v0.1.0` plus `vscode_artifact_patterns=*.vsix`.
+
+## Real release
+
+Only after the final explicit publish approval:
 
 ```sh
-npx ovsx publish compress-image-darwin-arm64-0.1.0.vsix -p "$OVSX_PAT"
-npx ovsx publish compress-image-darwin-x64-0.1.0.vsix -p "$OVSX_PAT"
-npx ovsx publish compress-image-linux-arm64-0.1.0.vsix -p "$OVSX_PAT"
-npx ovsx publish compress-image-linux-x64-0.1.0.vsix -p "$OVSX_PAT"
-npx ovsx publish compress-image-win32-x64-0.1.0.vsix -p "$OVSX_PAT"
+/Users/austinserb/Desktop/agent-workspace/tools/oss-release/run publish \
+  --repo /Users/austinserb/Desktop/agent-workspace/projects/compress-image \
+  --version 0.1.0
 ```
+
+Observe every stage. If any registry or workflow fails, stop and inspect the exact failure rather than blindly retrying or rebuilding different artifacts.
+
+## Post-release checks
+
+After both registries report the version live:
+
+1. Confirm all intended platform packages are represented and there is no unqualified fallback VSIX.
+2. Check the Marketplace/Open VSX icon, README screenshots, changelog, links, publisher, version, and install controls.
+3. Install from a clean VS Code profile on a supported platform.
+4. Confirm the Open VSX version appears in Cursor.
+5. Uncomment the Marketplace/Open VSX badges in `README.md` only after the listings exist.
 
 ## v0.1.0 listing copy
 

@@ -220,6 +220,8 @@ Do not casually add a new native dependency. A small compression improvement is 
 
 Preparing, testing, and packaging a release is allowed.
 
+Use the workspace `oss-release` tool for release preflight/dry-run and, after explicit approval, the real multi-registry release. Keep `.oss-release.yaml` and the generated trusted-publishing workflow aligned with the project artifact workflow so all registries receive the exact tested VSIX files rather than independent rebuilds.
+
 Do **not** publish to Visual Studio Marketplace/Open VSX, create or push release tags, push a public repository, or otherwise make a public release without explicit user approval immediately before that action.
 
 ## Keep documentation aligned
