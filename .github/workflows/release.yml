@@ -36,7 +36,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run audit:runtime
-      - run: npm run check
+      - run: npm run typecheck && npm test && npm run build && npm run bundle:check
       - run: node scripts/package-vsix.mjs
       - uses: actions/upload-artifact@v7
         with:
