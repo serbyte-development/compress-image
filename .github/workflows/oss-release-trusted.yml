@@ -97,7 +97,9 @@ jobs:
       - name: Publish VS Code extension from source
         if: contains(inputs.targets, 'vscode_marketplace') && inputs.vscode_artifact_names == ''
         working-directory: ${{ inputs.vscode_dir }}
-        run: npx --yes @vscode/vsce@3.9.3-4 publish --oidc --skip-duplicate
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: npx --yes @vscode/vsce@3.9.2 publish --skip-duplicate
       - name: Download exact VS Code release artifacts
         if: contains(inputs.targets, 'vscode_marketplace') && inputs.vscode_artifact_names != ''
         env:
@@ -113,12 +115,14 @@ jobs:
           done
       - name: Publish exact VS Code release artifacts
         if: contains(inputs.targets, 'vscode_marketplace') && inputs.vscode_artifact_names != ''
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: |
           set -euo pipefail
           destination="$RUNNER_TEMP/oss-release-vscode"
           IFS=',' read -ra names <<< "${{ inputs.vscode_artifact_names }}"
           for name in "${names[@]}"; do
-            npx --yes @vscode/vsce@3.9.3-4 publish --oidc --packagePath "$destination/$name" --skip-duplicate
+            npx --yes @vscode/vsce@3.9.2 publish --packagePath "$destination/$name" --skip-duplicate
           done
 
       - name: Install MCP publisher
