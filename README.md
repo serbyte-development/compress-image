@@ -4,9 +4,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
 <!--
-[![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/serbytedevelopment.compress-image)](https://marketplace.visualstudio.com/items?itemName=serbytedevelopment.compress-image)
-[![Visual Studio Marketplace Installs](https://img.shields.io/visual-studio-marketplace/i/serbytedevelopment.compress-image)](https://marketplace.visualstudio.com/items?itemName=serbytedevelopment.compress-image)
-[![Open VSX Version](https://img.shields.io/open-vsx/v/serbytedevelopment/compress-image)](https://open-vsx.org/extension/serbytedevelopment/compress-image)
+[![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/serbytedevelopment.compress-images)](https://marketplace.visualstudio.com/items?itemName=serbytedevelopment.compress-images)
+[![Visual Studio Marketplace Installs](https://img.shields.io/visual-studio-marketplace/i/serbytedevelopment.compress-images)](https://marketplace.visualstudio.com/items?itemName=serbytedevelopment.compress-images)
+[![Open VSX Version](https://img.shields.io/open-vsx/v/serbytedevelopment/compress-images)](https://open-vsx.org/extension/serbytedevelopment/compress-images)
 -->
 
 Compress and resize images directly from the VS Code Explorer.
@@ -27,14 +27,14 @@ Everything runs locally. Your images never leave your machine.
 
 ## Supported formats
 
-| Format | Compress | Resize |
-| --- | --- | --- |
-| PNG | Yes | Yes |
-| APNG | Yes | No |
-| JPEG / JPG | Yes | Yes |
-| WebP | Static images | Static images |
-| GIF | Yes | Yes, including animation |
-| AVIF | Static images | Static images |
+| Format     | Compress      | Resize                   |
+| ---------- | ------------- | ------------------------ |
+| PNG        | Yes           | Yes                      |
+| APNG       | Yes           | No                       |
+| JPEG / JPG | Yes           | Yes                      |
+| WebP       | Static images | Static images            |
+| GIF        | Yes           | Yes, including animation |
+| AVIF       | Static images | Static images            |
 
 Animated WebP, APNG resizing, AVIF image sequences, and multi-image AVIF files are not supported. HEIC, TIFF, BMP, SVG, and other formats are also currently unsupported.
 

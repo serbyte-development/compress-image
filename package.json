@@ -1,5 +1,5 @@
 {
-  "name": "compress-image",
+  "name": "compress-images",
   "displayName": "Compress Image",
   "description": "Lossless image compression + simple resizing in VS Code and Cursor.",
   "version": "0.1.0",

@@ -7,8 +7,8 @@ Compress Image releases are orchestrated by the workspace `oss-release` tool. Pu
 The same `0.1.0` extension identity is released to:
 
 - GitHub Releases — durable source of the exact platform VSIX files.
-- Visual Studio Marketplace — `serbytedevelopment.compress-image` for VS Code.
-- Open VSX — `serbytedevelopment/compress-image` for Cursor and other Open VSX consumers.
+- Visual Studio Marketplace — `serbytedevelopment.compress-images` for VS Code.
+- Open VSX — `serbytedevelopment/compress-images` for Cursor and other Open VSX consumers.
 
 v0.1.0 has no universal fallback package. It ships exactly five platform-specific VSIX files:
 
@@ -28,7 +28,7 @@ v0.1.0 has no universal fallback package. It ships exactly five platform-specifi
 2. Downloads the exact five VSIX outputs.
 3. Creates the GitHub Release with those VSIX files.
 4. Publishes those same local files to Open VSX, one at a time.
-5. Dispatches the trusted Marketplace workflow, which downloads the same VSIX files from the GitHub Release and publishes them one at a time with OIDC.
+5. Dispatches the trusted Marketplace workflow, which downloads the same VSIX files from the GitHub Release and publishes them one at a time with the `VSCE_PAT` GitHub Actions secret.
 6. Verifies the configured registries after publishing.
 
 No registry should independently rebuild the extension when artifact mode is configured.
@@ -38,10 +38,10 @@ No registry should independently rebuild the extension when artifact mode is con
 ### Visual Studio Marketplace
 
 1. Confirm the publisher ID is `serbytedevelopment`.
-2. Configure Marketplace trusted publishing for `Serbyte-Development/compress-image` and `.github/workflows/oss-release-trusted.yml`.
-3. Keep `id-token: write` on that generated workflow.
+2. Configure the organization-level `VSCE_PAT` GitHub Actions secret for repositories that publish extensions.
+3. Keep the generated trusted workflow current with `oss-release setup`.
 
-The release workflow uses `vsce publish --oidc`; a long-lived Marketplace PAT is not part of the normal automated release path.
+The release workflow uses stable `vsce` with `VSCE_PAT` until Marketplace OIDC publishing is available in production.
 
 ### Open VSX
 
@@ -74,7 +74,7 @@ Then exercise the release orchestrator without publishing:
   --dry-run
 ```
 
-The dry run should show one tag operation, a GitHub Release using collected `*.vsix` artifacts, Open VSX publishing from collected `*.vsix` artifacts, and a Marketplace trusted-workflow dispatch carrying `release_tag=v0.1.0` plus `vscode_artifact_patterns=*.vsix`.
+The dry run should show one tag operation, a GitHub Release using collected `*.vsix` artifacts, Open VSX publishing from collected `*.vsix` artifacts, and a Marketplace trusted-workflow dispatch carrying `release_tag=v0.1.0` plus `vscode_artifact_names=<exact-vsix-names>`.
 
 ## Real release
 
